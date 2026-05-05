@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Disease Recognition</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary" data-bs-theme="dark">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">
+            <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="" width="30" height="24" class="d-inline-block align-text-top">
+            PHASAL
+          </a>
+        </div>
+    </nav>
+    <div id="carouselExampleSlidesOnly" class="carousel slide" data-bs-ride="carousel">
+        <div class="carousel-inner">
+            <div class="carousel-item active">
+              <div class="carousel-text-wrapper">
+                <h1 class="carousel-text-title">Plant Disease Recognition</h1>
+                <div class="form-box">
+                  <form action="/upload/" method="POST" enctype="multipart/form-data">
+                    <h1>Upload Image</h1>
+                    {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                    {% endif %}
+                    <div class="input-box d-flex">
+                      <input type="file" accept="image/png, image/jpeg" name="img" required>
+                    </div>
+                    <div class="input-box d-flex">
+                      <button type="submit" class="btn btn-success m-auto">Upload</button>
+                    </div>
+                  </form>
+                  {% if result %}
+                  <div class="result-container">
+                    <div class="result-box">
+                      <div class="result-text">
+                        <h3>{{ prediction['name'] }}</h3>
+                        <p>{{ prediction['cause'] }}</p>
+                        <p>{{ prediction['cure'] }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>
