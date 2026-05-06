@@ -2,7 +2,8 @@ import os
 import uuid
 import json
 import numpy as np
-import tensorflow as tf
+import tflite_runtime.interpreter as tflite
+from PIL import Image
 from flask import Flask, render_template, request, redirect, send_from_directory
 
 app = Flask(__name__)
@@ -11,7 +12,15 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploadimages')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-model = tf.keras.models.load_model(os.path.join(os.path.dirname(__file__), 'models', 'plant_disease_recog_model_pwp.keras'))
+_interpreter = None
+
+def get_interpreter():
+    global _interpreter
+    if _interpreter is None:
+        model_path = os.path.join(os.path.dirname(__file__), 'models', 'plant_disease_model.tflite')
+        _interpreter = tflite.Interpreter(model_path=model_path)
+        _interpreter.allocate_tensors()
+    return _interpreter
 
 with open(os.path.join(os.path.dirname(__file__), 'plant_disease.json'), 'r') as f:
     plant_disease = json.load(f)
@@ -21,15 +30,17 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def extract_features(image_path):
-    image = tf.keras.utils.load_img(image_path, target_size=(160, 160))
-    feature = tf.keras.utils.img_to_array(image)
-    return np.array([feature])
-
-
 def model_predict(image_path):
-    img = extract_features(image_path)
-    prediction = model.predict(img)
+    img = Image.open(image_path).resize((160, 160))
+    img_array = np.array(img, dtype=np.float32)[np.newaxis, ...]
+
+    interpreter = get_interpreter()
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    interpreter.set_tensor(input_details[0]['index'], img_array)
+    interpreter.invoke()
+    prediction = interpreter.get_tensor(output_details[0]['index'])
     return plant_disease[prediction.argmax()]
 
 
