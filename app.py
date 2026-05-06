@@ -31,7 +31,7 @@ def allowed_file(filename):
 
 
 def model_predict(image_path):
-    img = Image.open(image_path).resize((160, 160))
+    img = Image.open(image_path).convert('RGB').resize((160, 160))
     img_array = np.array(img, dtype=np.float32)[np.newaxis, ...]
 
     interpreter = get_interpreter()
