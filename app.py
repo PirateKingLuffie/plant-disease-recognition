@@ -32,7 +32,9 @@ def allowed_file(filename):
 
 def model_predict(image_path):
     img = Image.open(image_path).convert('RGB').resize((160, 160))
-    img_array = np.array(img, dtype=np.float32)[np.newaxis, ...]
+    # Normalize pixel values to [0, 1] — critical for model accuracy
+    img_array = np.array(img, dtype=np.float32) / 255.0
+    img_array = img_array[np.newaxis, ...]
 
     interpreter = get_interpreter()
     input_details = interpreter.get_input_details()
@@ -41,7 +43,11 @@ def model_predict(image_path):
     interpreter.set_tensor(input_details[0]['index'], img_array)
     interpreter.invoke()
     prediction = interpreter.get_tensor(output_details[0]['index'])
-    return plant_disease[prediction.argmax()]
+    predicted_index = int(prediction.argmax())
+    confidence = float(prediction[0][predicted_index]) * 100
+    result = dict(plant_disease[predicted_index])
+    result['confidence'] = round(confidence, 1)
+    return result
 
 
 @app.route('/uploadimages/<path:filename>')
@@ -64,16 +70,18 @@ def uploadimage():
         return render_template('home.html', error='Please upload a valid image (png, jpg, jpeg).')
 
     ext = image.filename.rsplit('.', 1)[1].lower()
-    temp_filename = f"temp_{uuid.uuid4().hex}.{ext}"
+    temp_filename = f"upload_{uuid.uuid4().hex}.{ext}"
     temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
     image.save(temp_path)
 
     try:
         prediction = model_predict(temp_path)
-    finally:
+        image_url = f'/uploadimages/{temp_filename}'
+    except Exception as e:
         os.remove(temp_path)
+        return render_template('home.html', error=f'Error processing image: {str(e)}')
 
-    return render_template('home.html', result=True, imagepath=None, prediction=prediction)
+    return render_template('home.html', result=True, imagepath=image_url, prediction=prediction)
 
 
 if __name__ == '__main__':
