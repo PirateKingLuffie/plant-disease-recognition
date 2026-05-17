@@ -3,7 +3,8 @@ import uuid
 import json
 from PIL import Image
 from flask import Flask, render_template, request, redirect, send_from_directory
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 app = Flask(__name__)
 
@@ -11,8 +12,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploadimages')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
 
 PROMPT = """You are an expert plant pathologist and botanist.
 Analyze this image and respond ONLY with a valid JSON object — no markdown, no code fences, no explanation.
@@ -53,7 +53,7 @@ def allowed_file(filename):
 
 
 def gemini_predict(image_path):
-    # Resize large images to save quota
+    # Resize large images
     img = Image.open(image_path).convert('RGB')
     w, h = img.size
     if max(w, h) > 1024:
@@ -61,11 +61,16 @@ def gemini_predict(image_path):
         img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
         img.save(image_path, quality=85)
 
-    img = Image.open(image_path)
-    response = model.generate_content([PROMPT, img])
+    img_pil = Image.open(image_path)
+
+    response = client.models.generate_content(
+        model='gemini-flash-latest',
+        contents=[PROMPT, img_pil],
+    )
+
     raw = response.text.strip()
 
-    # Strip markdown fences if Gemini wraps them anyway
+    # Strip markdown fences if present
     if raw.startswith('```'):
         raw = raw.split('```')[1]
         if raw.startswith('json'):
@@ -74,7 +79,6 @@ def gemini_predict(image_path):
 
     result = json.loads(raw)
 
-    # Ensure all keys exist
     defaults = {
         'display_name': 'Unknown',
         'plant': 'Unknown',
@@ -126,10 +130,7 @@ def uploadimage():
         return render_template('home.html', error='AI returned an unexpected response. Please try again.')
     except Exception as e:
         os.remove(temp_path)
-        err = str(e)
-        if 'api_key' in err.lower() or 'api key' in err.lower():
-            return render_template('home.html', error='Gemini API key not configured. Please contact the site admin.')
-        return render_template('home.html', error=f'Analysis failed: {err}')
+        return render_template('home.html', error=f'Analysis failed: {str(e)}')
 
     return render_template('home.html', result=True, imagepath=image_url, prediction=prediction)
 
