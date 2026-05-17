@@ -2,3 +2,14 @@ uploadimages/temp_*
 __pycache__/
 *.pyc
 .env
+
+# Local dev / training artifacts
+convert_env/
+retrain_model.py
+convert_model.py
+debug_keras.py
+debug_model.py
+fix_model.py
+models/mobilenet_saved_model/
+models/fixed_saved_model_tmp/
+models/saved_model_tmp/
